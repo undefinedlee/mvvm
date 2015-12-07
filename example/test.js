@@ -1,4 +1,21 @@
-var util = require("./util");
+function extend(target, src){
+	if(src){
+		for(var key in src){
+			if(src.hasOwnProperty(key)){
+				target[key] = src[key];
+			}
+		}
+	}
+	return target;
+}
+
+var util = {
+	extend: extend
+};
+
+
+
+
 
 // 会产生子作用域的标签
 var childScopeTag = "repeat if switch".toUpperCase().split(" ");
@@ -39,7 +56,7 @@ function scanExpression(content){
 			if(suffix === "{"){
 				suffix = "+";
 			}
-			return prefix + "\"" + content.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/[\r\n\t]/g, " ") + "\"" + suffix;
+			return prefix + "\"" + content.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/([\r\n\t])/g, " ") + "\"" + suffix;
 		});
 
 		obj.parse = new Function("scope", "return " + content);
@@ -92,8 +109,104 @@ function scanNode(node, watchs){
 	}
 }
 // 扫描节点
-module.exports = function(node, watchs){
+var scan = function(node, watchs){
 	watchs = watchs || {};
 	scanNode(node, watchs);
 	return watchs;
 };
+
+
+
+
+
+
+function trans(vm, model){
+	Object.defineProperties(vm, (function(model){
+		var _model = {};
+		Object.keys(model).forEach(function(key){
+			function accessor(value){
+				if(value !== accessor.$value){
+					accessor.$value = value;
+					this.$digest(key);
+				}
+			}
+			_model[key] = {
+				get: function(){
+					return accessor.$value;
+				},
+				set: accessor
+			};
+		});
+		return _model;
+	})(model));
+}
+
+function Scope(propertys){
+	trans(this, propertys);
+}
+Scope.prototype = {
+	$new: function(propertys){
+		function Scope(){}
+		Scope.prototype = this;
+		Scope.constructor = Scope;
+
+		var scope = new Scope();
+		scope.$watchs = {};
+
+		trans(scope, propertys);
+
+		return scope;
+	},
+	$watchs: {},
+	$watch: function(property, fn){
+		if(this.$watchs[property]){
+			this.$watchs[property].push(fn);
+		}else{
+			this.$watchs[property] = [fn];
+		}
+	},
+	$digest: function(property){
+		var scope;
+		if(this.$watchs[property]){
+			scope = this;
+			this.$watchs[property].forEach(function(watch){
+				watch(scope);
+			});
+		}
+	}
+};
+
+
+
+
+function ViewModel(node, model, parentScope){
+	var vm = parentScope ? parentScope.$new(model) : new Scope(model);
+	var watchs = scan(node);
+
+	for(var key in watchs){
+		if(vm.$watchs[key]){
+			vm.$watchs[key] = vm.$watchs[key].concat(watchs[key]);
+		}else{
+			vm.$watchs[key] = watchs[key];
+		}
+	}
+
+	return vm;
+};
+
+
+
+var scope = new Scope({
+	a: 1,
+	b: 1,
+	c: 1
+});
+
+var model = ViewModel(document.getElementsByTagName("div")[0], {
+	c: 2,
+	d: 2,
+	e: 2
+}, scope);
+
+scope.c = 3;
+model.c=4;
