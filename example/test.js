@@ -56,7 +56,7 @@ function scanExpression(content){
 			if(suffix === "{"){
 				suffix = "+";
 			}
-			return prefix + "\"" + content.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/([\r\n\t])/g, " ") + "\"" + suffix;
+			return prefix + "\"" + content.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/\n/g, "\\n") + "\"" + suffix;
 		});
 
 		obj.parse = new Function("scope", "return " + content);
