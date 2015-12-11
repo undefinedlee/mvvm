@@ -7,10 +7,12 @@ var scope = new Scope({
 	c: 1
 });
 
-var model = ViewModel(document.getElementsByTagName("div")[0], {
-	c: 2,
-	d: 2,
-	e: 2
+var model = ViewModel(document.getElementById("test1"), {
+	c: 2
 }, scope);
 
-scope.b = 3;
+//model.e = 5;
+
+var vm2 = ViewModel(document.getElementById("test2"));
+vm2.a="a";
+vm2.b="c";

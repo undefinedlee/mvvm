@@ -8,6 +8,15 @@ var GlobalVar = ["Math Date Array Boolean Number String RegExp Function",
 					"decodeURI encodeURI decodeURIComponent encodeURIComponent escape unescape eval parseInt parseFloat isFinite isNaN",
 					"new typeof"].join(" ").split(" ");
 var noop = function(){};
+// 渲染时的工具方法
+var renderUtil = {
+	toString: function(value){
+		if(value === null || typeof value === "undefined"){
+			return "";
+		}
+		return value;
+	}
+};
 /**
  * 扫描表达式
  * {var}
@@ -28,21 +37,26 @@ function scanExpression(content){
 				}
 				return expression;
 			});
-			return "{(" + expression + ")}";
+			return "{util.toString(" + expression + ")}";
 		})
 		.replace(/\}\{/g, "+")
-		.replace(/^\{|\}$/g, "")
-		.replace(/(^|\})([^{}]*)($|\{)/g, function(all, prefix, content, suffix){
-			if(prefix === "}"){
-				prefix = "+";
-			}
-			if(suffix === "{"){
-				suffix = "+";
-			}
-			return prefix + "\"" + content.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/\n/g, "\\n") + "\"" + suffix;
-		});
+		.replace(/^\{|\}$/g, "");
 
-		obj.parse = new Function("scope", "return " + content);
+		if(/{|}/.test(content)){
+			content = content.replace(/(^|\})([^{}]*)($|\{)/g, function(all, prefix, content, suffix){
+				if(prefix === "}"){
+					prefix = "+";
+				}
+				if(suffix === "{"){
+					suffix = "+";
+				}
+				return prefix + "\"" + util.packString(content) + "\"" + suffix;
+			});
+		}else{
+			content = util.packString(content);
+		}
+
+		obj.parse = new Function("scope", "util", "return " + content);
 	}
 	return obj;
 }
@@ -52,10 +66,40 @@ function scanExpression(content){
  */
 function scanAttr(node, watchs){
 	var attrs = node.attributes;
-	for(var i = 0, l = attrs.length; i < l; i ++){
+	for(var i = 0, l = attrs.length, attr; i < l; i ++){
+		attr = attrs[i];
 		var name = attr.name;
 		var value = attr.value;
 		var expression = scanExpression(value);
+		var vars = expression.vars;
+		if(vars.length){
+			var parse = (function(parse){
+				if(/^mv\-/.test(name)){
+					name = name.replace(/^mv\-/, "");
+					switch(name){
+						case "style":
+							return function(scope){
+								node.style = parse(scope, renderUtil);
+							};
+							break;
+					}
+				}else{
+					return function(scope){
+						attr.value = parse(scope, renderUtil);
+					};
+				}
+				return noop;
+			})(expression.parse);
+
+			for(var i = 0, l = vars.length, _var; i < l; i ++){
+				_var = vars[i];
+				if(watchs[_var]){
+					watchs[_var].push(parse);
+				}else{
+					watchs[_var] = [parse];
+				}
+			}
+		}
 	}
 }
 /**
@@ -78,15 +122,21 @@ function scanNode(node, watchs){
 			var nodeValue = node.nodeValue;
 			var expression = scanExpression(nodeValue);
 			var vars = expression.vars;
-			var parse = expression.parse;
-			for(var i = 0, l = vars.length, _var; i < l; i ++){
-				var _var = vars[i];
-				if(!watchs[_var]){
-					watchs[_var] = [];
+			if(vars.length){
+				var parse = (function(parse){
+					return function(scope){
+						node.nodeValue = parse(scope, renderUtil);
+					};
+				})(expression.parse);
+
+				for(var i = 0, l = vars.length, _var; i < l; i ++){
+					_var = vars[i];
+					if(watchs[_var]){
+						watchs[_var].push(parse);
+					}else{
+						watchs[_var] = [parse];
+					}
 				}
-				watchs[_var].push(function(scope){
-					node.nodeValue = parse(scope);
-				});
 			}
 			break;
 	}

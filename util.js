@@ -10,5 +10,8 @@ function extend(target, src){
 }
 
 module.exports = {
-	extend: extend
+	extend: extend,
+	packString: function(str){
+		return str.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/\n/g, "\\n");
+	}
 };
