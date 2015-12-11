@@ -77,9 +77,19 @@ function scanAttr(node, watchs){
 				if(/^mv\-/.test(name)){
 					name = name.replace(/^mv\-/, "");
 					switch(name){
+						case "text":
+							return function(scope){
+								node.innerText = parse(scope, renderUtil);
+							};
+							break;
 						case "style":
 							return function(scope){
-								node.style = parse(scope, renderUtil);
+								node.style.cssText = parse(scope, renderUtil);
+							};
+							break;
+						case "src":
+							return function(scope){
+								node.src = parse(scope, renderUtil);
 							};
 							break;
 					}
@@ -91,8 +101,8 @@ function scanAttr(node, watchs){
 				return noop;
 			})(expression.parse);
 
-			for(var i = 0, l = vars.length, _var; i < l; i ++){
-				_var = vars[i];
+			for(var _i = 0, _l = vars.length, _var; _i < _l; _i ++){
+				_var = vars[_i];
 				if(watchs[_var]){
 					watchs[_var].push(parse);
 				}else{

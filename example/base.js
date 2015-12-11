@@ -282,6 +282,45 @@ function scanAttr(node, watchs){
 		var name = attr.name;
 		var value = attr.value;
 		var expression = scanExpression(value);
+		var vars = expression.vars;
+		if(vars.length){
+			var parse = (function(parse){
+				if(/^mv\-/.test(name)){
+					name = name.replace(/^mv\-/, "");
+					switch(name){
+						case "text":
+							return function(scope){
+								node.innerText = parse(scope, renderUtil);
+							};
+							break;
+						case "style":
+							return function(scope){
+								node.style.cssText = parse(scope, renderUtil);
+							};
+							break;
+						case "src":
+							return function(scope){
+								node.src = parse(scope, renderUtil);
+							};
+							break;
+					}
+				}else{
+					return function(scope){
+						attr.value = parse(scope, renderUtil);
+					};
+				}
+				return noop;
+			})(expression.parse);
+
+			for(var _i = 0, _l = vars.length, _var; _i < _l; _i ++){
+				_var = vars[_i];
+				if(watchs[_var]){
+					watchs[_var].push(parse);
+				}else{
+					watchs[_var] = [parse];
+				}
+			}
+		}
 	}
 }
 /**
@@ -304,18 +343,20 @@ function scanNode(node, watchs){
 			var nodeValue = node.nodeValue;
 			var expression = scanExpression(nodeValue);
 			var vars = expression.vars;
-			var parse = (function(parse){
-				return function(scope){
-					node.nodeValue = parse(scope, renderUtil);
-				};
-			})(expression.parse);
+			if(vars.length){
+				var parse = (function(parse){
+					return function(scope){
+						node.nodeValue = parse(scope, renderUtil);
+					};
+				})(expression.parse);
 
-			for(var i = 0, l = vars.length, _var; i < l; i ++){
-				_var = vars[i];
-				if(watchs[_var]){
-					watchs[_var].push(parse);
-				}else{
-					watchs[_var] = [parse];
+				for(var i = 0, l = vars.length, _var; i < l; i ++){
+					_var = vars[i];
+					if(watchs[_var]){
+						watchs[_var].push(parse);
+					}else{
+						watchs[_var] = [parse];
+					}
 				}
 			}
 			break;
