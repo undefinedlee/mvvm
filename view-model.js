@@ -6,10 +6,10 @@ module.exports = function(node, model, parentScope){
 	var watchs = scan(node);
 
 	for(var key in watchs){
-		if(vm.$watchs[key]){
-			vm.$watchs[key] = vm.$watchs[key].concat(watchs[key]);
+		if(vm.$listeners[key]){
+			vm.$listeners[key] = vm.$listeners[key].concat(watchs[key]);
 		}else{
-			vm.$watchs[key] = watchs[key];
+			vm.$listeners[key] = watchs[key];
 		}
 	}
 

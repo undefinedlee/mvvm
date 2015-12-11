@@ -2,3 +2,4 @@ nodeValue VS innerHTML
 		chrome nodeValue
 indexOf VS 正则
 		chrome 差不多
+indexOf  VS  split

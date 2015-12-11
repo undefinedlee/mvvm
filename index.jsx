@@ -1,5 +1,5 @@
 <ul>
-	<repeat expression="item in Model.Item">
+	<repeat expression="item in Items">
 		<if expression="$index % 2">
 			<li></li>
 		</if>
