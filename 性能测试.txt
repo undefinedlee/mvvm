@@ -1,4 +1,4 @@
-nodeValue VS innerHTML
+nodeValue VS innerText
 		chrome nodeValue
 indexOf VS 正则
 		chrome 差不多

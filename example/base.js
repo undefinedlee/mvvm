@@ -78,7 +78,8 @@ function trans(vm, model, onchange){
 					return accessor.$value;
 				},
 				set: accessor,
-				enumerable: true
+				enumerable: true,
+				configurable: true
 			};
 		});
 		return _model;
@@ -105,20 +106,23 @@ function Scope(propertys){
 	Object.defineProperties(this, {
 		// 子作用域
 		$children: {
-			value: []
+			value: [],
+			configurable: true
 		},
 		// 监听列表
 		$listeners: {
-			value: {}
+			value: {},
+			configurable: true
 		},
 		// 事件监听列表
 		$eventListeners: {
-			value: {}
+			value: {},
+			configurable: true
 		}
 	});
 
 	// 关闭对象添加、删除属性
-	Object.seal(this);
+	//Object.seal(this);
 }
 Scope.prototype = {
 	// 创建子作用域
@@ -128,7 +132,8 @@ Scope.prototype = {
 		Object.defineProperties(scope, {
 			// 父作用域
 			$parent: {
-				value: this
+				value: this,
+				configurable: true
 			}
 		});
 		Scope.call(scope, propertys);
@@ -179,10 +184,13 @@ Scope.prototype = {
 		this.$children.forEach(function(child){
 			child.$destroy();
 		});
-		this.$children = null;
-		this.$listeners = null;
+		// 触发销毁事件
 		this.$fire("$destroy");
-		this.$eventListeners = null;
+		// 销毁所有属性
+		var self = this;
+		Object.keys(this).concat(["$parent", "$children", "$listeners", "$eventListeners"]).forEach(function(key){
+			delete self[key];
+		});
 	},
 	$on: function(eventName, listener){
 		if(this.$eventListeners[eventName]){
@@ -273,7 +281,11 @@ function scanExpression(content){
 }
 /**
  * 扫描属性
- * mv-model mv-bind mv-style mv-class mv-show
+ * mv-model
+ * mv-text
+ * mv-html
+ * mv-style
+ * mv-src
  */
 function scanAttr(node, watchs){
 	var attrs = node.attributes;
@@ -291,6 +303,11 @@ function scanAttr(node, watchs){
 						case "text":
 							return function(scope){
 								node.innerText = parse(scope, renderUtil);
+							};
+							break;
+						case "html":
+							return function(scope){
+								node.innerHTML = parse(scope, renderUtil);
 							};
 							break;
 						case "style":

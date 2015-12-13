@@ -1,6 +1,7 @@
 var util = require("./util");
 var scan = require("./scan");
 var Scope = require("./scope");
+var repeat = require("./repeat");
 
 var Undefined;
 // 检测某个作用域是否包含某个属性
@@ -13,8 +14,10 @@ function hasProperty(scope, property){
 	return false;
 }
 
-module.exports = function(node, model, parentScope){
-	var watchs = scan(node);
+var ViewModel = function(node, model, parentScope){
+	var result = scan(node);
+	var watchs = result.watchs;
+	var children = result.children;
 	// 提取模板中watch的属性
 	model = util.extend((function(watchs){
 		var model = {};
@@ -44,5 +47,16 @@ module.exports = function(node, model, parentScope){
 		node.parentNode.removeChild(node);
 	});
 
+	children.forEach(function(child){
+		switch(child.tagName){
+			case "repeat":
+				var result = repeat(node);
+				ViewModel(result.nodes, result.model, vm);
+				break;
+		}
+	});
+
 	return vm;
 };
+
+module.exports = function(node, model, parentScope){};

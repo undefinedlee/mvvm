@@ -1,13 +1,22 @@
 <ul>
-	<repeat expression="item in Items">
-		<if expression="$index % 2">
+	<for exp="item in Items">
+		<if exp="$index % 2">
 			<li></li>
 		</if>
-		<switch expression="item.checked">
-			<case expression="true">
+		<elseif></elseif>
+		<else></else>
+		<switch exp="item.checked">
+			<case exp="true">
 			</case>
-			<case expression="false">
+			<case exp="false">
 			</case>
+			<default></default>
 		</switch>
-	</repeat>
+	</for>
+</ul>
+
+<ul>
+	<li vm-for="item in Items">
+		<span vm-if="true"></span>
+	</li>
 </ul>

@@ -1,7 +1,7 @@
 var util = require("./util");
 
 // 会产生子作用域的标签
-var childScopeTag = "repeat if switch".toUpperCase().split(" ");
+var childScopeTag = "repeat if switch".split(" ");
 // 全局变量
 var GlobalVar = ["Math Date Array Boolean Number String RegExp Function",
 					"Infinity NaN undefined",
@@ -62,7 +62,11 @@ function scanExpression(content){
 }
 /**
  * 扫描属性
- * mv-model mv-bind mv-style mv-class mv-show
+ * mv-model
+ * mv-text
+ * mv-html
+ * mv-style
+ * mv-src
  */
 function scanAttr(node, watchs){
 	var attrs = node.attributes;
@@ -80,6 +84,11 @@ function scanAttr(node, watchs){
 						case "text":
 							return function(scope){
 								node.innerText = parse(scope, renderUtil);
+							};
+							break;
+						case "html":
+							return function(scope){
+								node.innerHTML = parse(scope, renderUtil);
 							};
 							break;
 						case "style":
@@ -115,17 +124,34 @@ function scanAttr(node, watchs){
 /**
  * 扫描节点
  */
-function scanNode(node, watchs){
+function scanNode(node, watchs, children){
 	var nodeType = node.nodeType;
 	switch(nodeType){
 		case 1:
-			var tagName = node.tagName;
+			var tagName = node.tagName.toLowerCase();
 			if(childScopeTag.indexOf(tagName) === -1){
 				var children = node.childNodes;
 				for(var i = 0, l = children.length; i < l; i ++){
-					scanNode(children[i], watchs);
+					scanNode(children[i], watchs, children);
 				}
 				scanAttr(node, watchs);
+			}else{
+				// switch(tagName){
+				// 	case "repeat":
+				// 		break;
+				// 	case "switch":
+				// 		break;
+				// 	case "case":
+				// 		break;
+				// 	case "if":
+				// 		break;
+				// 	case "else":
+				// 		break;
+				// }
+				children.push({
+					tagName: tagName,
+					node: node
+				});
 			}
 			break;
 		case 3:
@@ -152,8 +178,12 @@ function scanNode(node, watchs){
 	}
 }
 // 扫描节点
-module.exports = function(node, watchs){
+module.exports = function(node, watchs, children){
 	watchs = watchs || {};
-	scanNode(node, watchs);
-	return watchs;
+	children = children || [];
+	scanNode(node, watchs, children);
+	return {
+		watchs: watchs,
+		children: children
+	};
 };
