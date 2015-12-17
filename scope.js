@@ -81,6 +81,13 @@ function Scope(propertys){
 	//Object.seal(this);
 }
 Scope.prototype = {
+	// 扩展属性
+	$extend: function(propertys){
+		var self = this;
+		trans(this, propertys, function(property){
+			self.$digest(property);
+		});
+	},
 	// 创建子作用域
 	$new: function(propertys){
 		var scope = Object.create(this);

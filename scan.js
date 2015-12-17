@@ -1,7 +1,27 @@
 var util = require("./util");
 
-// 会产生子作用域的标签
-var childScopeTag = "repeat if switch".split(" ");
+// 标准标签
+var standardTag = ["a abbr acronym address area article aside audio",
+					"b base bdi bdo big blockquote body br button",
+					"canvas caption cite code col colgroup command",
+					"datalist dd del details div dfn dialog dl dt",
+					"em embed",
+					"fieldset figcaption figure footer form frame frameset",
+					"h1 h2 h3 h4 h5 h6 head header hr html",
+					"i iframe img input ins",
+					"kbd keygen",
+					"label legend li link",
+					"map mark menu menuitem meta meter",
+					"nav noframes noscript",
+					"object ol optgroup option output",
+					"p param pre progress",
+					"q",
+					"rp rt ruby",
+					"samp script section select small source span strong style sub summary sup",
+					"table tbody td textarea tfoot th thead time title tr track tt",
+					"ul",
+					"var video",
+					"wbr"].join(" ").split(" ");
 // 全局变量
 var GlobalVar = ["Math Date Array Boolean Number String RegExp Function",
 					"Infinity NaN undefined",
@@ -124,32 +144,20 @@ function scanAttr(node, watchs){
 /**
  * 扫描节点
  */
-function scanNode(node, watchs, children){
+function scanNode(node, watchs, directives, isRoot){
 	var nodeType = node.nodeType;
 	switch(nodeType){
 		case 1:
 			var tagName = node.tagName.toLowerCase();
-			if(childScopeTag.indexOf(tagName) === -1){
+			if(standardTag.indexOf(tagName) !== -1 || isRoot){
 				var children = node.childNodes;
 				for(var i = 0, l = children.length; i < l; i ++){
-					scanNode(children[i], watchs, children);
+					scanNode(children[i], watchs, directives, false);
 				}
 				scanAttr(node, watchs);
 			}else{
-				// switch(tagName){
-				// 	case "repeat":
-				// 		break;
-				// 	case "switch":
-				// 		break;
-				// 	case "case":
-				// 		break;
-				// 	case "if":
-				// 		break;
-				// 	case "else":
-				// 		break;
-				// }
-				children.push({
-					tagName: tagName,
+				directives.push({
+					name: tagName,
 					node: node
 				});
 			}
@@ -178,12 +186,12 @@ function scanNode(node, watchs, children){
 	}
 }
 // 扫描节点
-module.exports = function(node, watchs, children){
+module.exports = function(node, watchs, directives){
 	watchs = watchs || {};
-	children = children || [];
-	scanNode(node, watchs, children);
+	directives = directives || [];
+	scanNode(node, watchs, directives, true);
 	return {
 		watchs: watchs,
-		children: children
+		directives: directives
 	};
 };

@@ -1,7 +1,7 @@
 var util = require("./util");
 var scan = require("./scan");
 var Scope = require("./scope");
-var repeat = require("./repeat");
+var Directives = require("./directive").get();
 
 var Undefined;
 // 检测某个作用域是否包含某个属性
@@ -14,10 +14,13 @@ function hasProperty(scope, property){
 	return false;
 }
 
-var ViewModel = function(node, model, parentScope){
+var ViewModel = function(node, model, parentScope, createNewScope){
+	// 扫描节点
 	var result = scan(node);
+	// 扫描结果中的绑定点
 	var watchs = result.watchs;
-	var children = result.children;
+	// 扫描结果中的指令
+	var directives = result.directives;
 	// 提取模板中watch的属性
 	model = util.extend((function(watchs){
 		var model = {};
@@ -31,7 +34,7 @@ var ViewModel = function(node, model, parentScope){
 		return model;
 	})(watchs), model || {});
 	// 生成ViewModel
-	var vm = parentScope ? parentScope.$new(model) : new Scope(model);
+	var vm = parentScope ? createNewScope ? parentScope.$new(model) : parentScope : new Scope(model);
 	// 绑定watch
 	for(var key in watchs){
 		if(vm.$listeners[key]){
@@ -46,17 +49,13 @@ var ViewModel = function(node, model, parentScope){
 	vm.$on("$destroy", function(){
 		node.parentNode.removeChild(node);
 	});
-
-	children.forEach(function(child){
-		switch(child.tagName){
-			case "repeat":
-				var result = repeat(node);
-				ViewModel(result.nodes, result.model, vm);
-				break;
-		}
+	// 解析指令
+	directives.forEach(function(directive){
+		var result = Directives[directive.name](directive.node);
+		ViewModel(directive.node, result.model, vm, result.createNewScope);
 	});
 
 	return vm;
 };
 
-module.exports = function(node, model, parentScope){};
+module.exports = ViewModel;
