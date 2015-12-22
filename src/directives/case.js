@@ -1,4 +1,4 @@
-var scan = require("./scan");
+var scan = require("../scan");
 
 module.exports = function(node){
 	var exp = node.getAttribute("exp");

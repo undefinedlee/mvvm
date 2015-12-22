@@ -1,4 +1,4 @@
-var scan = require("./scan");
+var scan = require("../scan");
 
 module.exports = function(node){
 	var exp = node.getAttribute("exp");
@@ -6,6 +6,6 @@ module.exports = function(node){
 
 	return {
 		model: model,
-		createNewScope: false
+		createNewScope: true
 	};
 };

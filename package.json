@@ -1,0 +1,11 @@
+{
+  "name": "mvvm",
+  "description": "mvvm",
+  "main": "dist/index.js",
+  "devDependencies": {
+    "gulp": "^3.9.0",
+    "gulp-all-in-one": "^1.0.0",
+    "gulp-rename": "^1.2.2",
+    "gulp-uglify": "^1.5.1"
+  }
+}
