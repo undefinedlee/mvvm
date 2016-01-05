@@ -4,15 +4,6 @@ var Scope = require("./scope");
 var Directives = require("./directive").get();
 
 var Undefined;
-// 检测某个作用域是否包含某个属性
-function hasProperty(scope, property){
-	if(scope.hasOwnProperty(property)){
-		return true;
-	}else if(scope.$parent){
-		return hasProperty(scope.$parent, property);
-	}
-	return false;
-}
 
 var ViewModel = function(node, model, parentScope, createNewScope){
 	// 扫描节点
@@ -27,14 +18,14 @@ var ViewModel = function(node, model, parentScope, createNewScope){
 		var _parentScope = parentScope || {};
 		Object.keys(watchs).forEach(function(key){
 			key = key.split(".")[0];
-			if(!hasProperty(_parentScope, key)){
+			if(!_parentScope.$hasProperty(key)){
 				model[key] = Undefined;
 			}
 		});
 		return model;
 	})(watchs), model || {});
 	// 生成ViewModel
-	var vm = parentScope ? createNewScope ? parentScope.$new(model) : parentScope : new Scope(model);
+	var vm = parentScope ? createNewScope ? parentScope.$new(model) : parentScope.$extend(model) : new Scope(model);
 	// 绑定watch
 	for(var key in watchs){
 		if(vm.$listeners[key]){
@@ -51,8 +42,24 @@ var ViewModel = function(node, model, parentScope, createNewScope){
 	});
 	// 解析指令
 	directives.forEach(function(directive){
-		var result = Directives[directive.name](directive.node);
-		ViewModel(directive.node, result.model, vm, result.createNewScope);
+		if(directive.type === "Event"){
+			// 注册事件
+			var parse = new Function("scope", "$event", directive.content.replace(/[a-zA-Z\$_][a-zA-Z\$_0-9\.]*/g, function(expression){
+				if(["$event"].indexOf(expression.split(".")[0]) === -1){
+					return "scope." + expression;
+				}
+			}));
+			directive.node.addEventListener(directive.name, function(e){
+				parse.call(directive.node, vm, e);
+			}, false);
+		}else{
+			var result = Directives[directive.name](directive, vm);
+			if(directive.type === "Tag"){
+				result.children.forEach(function(child){
+					ViewModel(child.node, child.model, vm, result.createNewScope);
+				});
+			}
+		}
 	});
 
 	return vm;

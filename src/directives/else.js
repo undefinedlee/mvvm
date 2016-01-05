@@ -1,7 +1,6 @@
 var scan = require("../scan");
 
-module.exports = function(node){
-	var exp = node.getAttribute("exp");
+module.exports = function(directive){
 	var model = {};
 
 	return {

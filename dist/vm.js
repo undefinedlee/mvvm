@@ -10,6 +10,9 @@
 		factory(require, module.exports, module);
 		mods[id] = module.exports;
 	}
+
+	
+	
 	
 	// util
 	define("3", function(require, exports, module){
@@ -28,12 +31,33 @@
 			extend: extend,
 			packString: function(str){
 				return str.replace(/\\/g, "\\\\").replace(/"/g, "\\\"").replace(/\n/g, "\\n");
+			},
+			getPropertyValue: function(obj, property){
+				property = property.split(".");
+		
+				while(property.length && obj){
+					obj = obj[property.shift()];
+				}
+		
+				return obj;
+			},
+			setPropertyValue: function(obj, property, value){
+				var property = property.split(".");
+				var _property = property.pop();
+		
+				while(property.length && obj){
+					obj = obj[property.shift()];
+				}
+		
+				if(obj){
+					obj[_property] = value;
+				}
 			}
 		};
 	});
 
 	// scan
-	define("9", function(require, exports, module){
+	define("A", function(require, exports, module){
 		var util = require("3");
 		
 		// 标准标签
@@ -118,13 +142,13 @@
 		}
 		/**
 		 * 扫描属性
-		 * mv-model
-		 * mv-text
-		 * mv-html
-		 * mv-style
-		 * mv-src
+		 * vm-model
+		 * vm-text
+		 * vm-html
+		 * vm-style
+		 * vm-src
 		 */
-		function scanAttr(node, watchs){
+		function scanAttr(node, watchs, directives){
 			var attrs = node.attributes;
 			for(var i = 0, l = attrs.length, attr; i < l; i ++){
 				attr = attrs[i];
@@ -134,9 +158,8 @@
 				var vars = expression.vars;
 				if(vars.length){
 					var parse = (function(parse){
-						if(/^mv\-/.test(name)){
-							name = name.replace(/^mv\-/, "");
-							switch(name){
+						if(/^vm\-/.test(name)){
+							switch(name.replace(/^vm\-/, "")){
 								case "text":
 									return function(scope){
 										node.innerText = parse(scope, renderUtil);
@@ -175,6 +198,26 @@
 						}
 					}
 				}
+		
+				if(/^vm\-/.test(name)){
+					// 属性指令
+					name = name.replace(/^vm\-/, "");
+					directives.push({
+						type: "Attribute",
+						name: name,
+						content: value,
+						node: node
+					});
+				}else if(/^on\:/.test(name)){
+					// 事件
+					name = name.replace(/^on\:/, "");
+					directives.push({
+						type: "Event",
+						name: name,
+						content: value,
+						node: node
+					});
+				}
 			}
 		}
 		/**
@@ -190,10 +233,13 @@
 						for(var i = 0, l = children.length; i < l; i ++){
 							scanNode(children[i], watchs, directives, false);
 						}
-						scanAttr(node, watchs);
+						scanAttr(node, watchs, directives);
 					}else{
+						// 标签指令
 						directives.push({
+							type: "Tag",
 							name: tagName,
+							content: node.getAttribute("exp"),
 							node: node
 						});
 					}
@@ -233,27 +279,83 @@
 		};
 	});
 
-	// directives/for
+	// directives\for
 	define("4", function(require, exports, module){
-		var scan = require("9");
+		var scan = require("A");
+		var util = require("3");
 		
-		module.exports = function(node){
-			var exp = node.getAttribute("exp");
-			var model = {};
+		var Undefined;
+		
+		var cacheContainer = document.createDocumentFragment();
+		
+		module.exports = function(directive, vm){
+			var children = [];
+		
+			var expression = directive.content.match(/^([a-zA-Z\$_][a-zA-Z\$_0-9]*)\s+in\s+([a-zA-Z\$_][a-zA-Z\$_0-9\.]*)$/);
+			if(expression){
+				var placeholder = document.createComment("for placeholder");
+				directive.node.parentNode.insertBefore(placeholder, directive.node);
+				var template = cacheContainer.appendChild(directive.node);
+		
+				var list = [];
+		
+				function clone(model){
+					var item = template.cloneNode();
+					list.push(item);
+					placeholder.parentNode.insertBefore(item, placeholder);
+					children.push({
+						node: item,
+						model: model
+					});
+				}
+		
+				function render(scope){
+					var value = util.getPropertyValue(scope, expression[1]) || [];
+					if(value instanceof Array){
+						for(var i = 0, l = value.length; i < l; i ++){
+							var model = {
+								$key: i
+							};
+							model[expression[0]] = value[i];
+							clone(model);
+						}
+					}else if(typeof value === "number"){
+						for(var i = 0; i < value; i ++){
+							var model = {
+								$key: i
+							};
+							model[expression[0]] = i;
+							clone(model);
+						}
+					}else{
+						for(var key in value){
+							var model = {
+								$key: key
+							};
+							model[expression[0]] = value[key];
+							clone(model);
+						}
+					}
+				}
+		
+				vm.$watch(expression[1], render);
+				render(vm);
+			}else{
+				console.error("error expression '" + directive.content + "' for directive 'for'");
+			}
 		
 			return {
-				model: model,
+				children: children,
 				createNewScope: true
 			};
 		};
 	});
 
-	// directives/if
+	// directives\if
 	define("5", function(require, exports, module){
-		var scan = require("9");
+		var scan = require("A");
 		
-		module.exports = function(node){
-			var exp = node.getAttribute("exp");
+		module.exports = function(directive){
 			var model = {};
 		
 			return {
@@ -263,48 +365,97 @@
 		};
 	});
 
-	// directives/else
-	define("6", function(require, exports, module){
-		var scan = require("9");
-		
-		module.exports = function(node){
-			var exp = node.getAttribute("exp");
-			var model = {};
-		
-			return {
-				model: model,
-				createNewScope: false
-			};
-		};
-	});
-
-	// directives/switch
-	define("7", function(require, exports, module){
-		var scan = require("9");
-		
-		module.exports = function(node){
-			var exp = node.getAttribute("exp");
-			var model = {};
-		
-			return {
-				model: model,
-				createNewScope: false
-			};
-		};
-	});
-
-	// directives/case
+	// directives\case
 	define("8", function(require, exports, module){
-		var scan = require("9");
+		var scan = require("A");
 		
-		module.exports = function(node){
-			var exp = node.getAttribute("exp");
+		module.exports = function(directive){
 			var model = {};
 		
 			return {
 				model: model,
 				createNewScope: false
 			};
+		};
+	});
+
+	// directives\else
+	define("6", function(require, exports, module){
+		var scan = require("A");
+		
+		module.exports = function(directive){
+			var model = {};
+		
+			return {
+				model: model,
+				createNewScope: false
+			};
+		};
+	});
+
+	// directives\switch
+	define("7", function(require, exports, module){
+		var scan = require("A");
+		
+		module.exports = function(directive){
+			var model = {};
+		
+			return {
+				model: model,
+				createNewScope: false
+			};
+		};
+	});
+
+	// directives\model
+	define("9", function(require, exports, module){
+		var util = require("3");
+		
+		module.exports = function(directive, vm){
+			var type;
+		
+			switch(directive.node.tagName){
+				case "INPUT":
+					switch(directive.node.type){
+						case "text":
+						case "password":
+						case "hidden":
+							type = "text";
+							break;
+						case "checkbox":
+							type = "checkbox";
+							break;
+						case "radio":
+							type = "radio";
+							break;
+					}
+					break;
+				case "TEXTAREA":
+					type = "text";
+					break;
+				case "SELECT":
+					type = "select";
+					break;
+				default:
+					type = "label";
+			}
+		
+			vm.$watch(directive.content, function(){
+				var value = util.getPropertyValue(vm, directive.content);
+				switch(type){
+					case "text":
+						directive.node.value = value;
+						break;
+				}
+			});
+		
+			switch(type){
+				case "text":
+					directive.node.addEventListener("keyup", function(){
+						util.setPropertyValue(vm, directive.content, directive.node.value);
+					}, false);
+					break;
+			}
 		};
 	});
 
@@ -317,7 +468,8 @@
 			"if": require("5"),
 			"else": require("6"),
 			"switch": require("7"),
-			"case": require("8")
+			"case": require("8"),
+			"model": require("9")
 		};
 		// 用户指令
 		var ClientDirectives = {};
@@ -335,7 +487,7 @@
 	});
 
 	// scope
-	define("A", function(require, exports, module){
+	define("B", function(require, exports, module){
 		var util = require("3");
 		// 
 		function isObject(opt){
@@ -517,8 +669,8 @@
 	// view-model
 	define("2", function(require, exports, module){
 		var util = require("3");
-		var scan = require("9");
-		var Scope = require("A");
+		var scan = require("A");
+		var Scope = require("B");
 		var Directives = require("1").get();
 		
 		var Undefined;
@@ -552,7 +704,7 @@
 				return model;
 			})(watchs), model || {});
 			// 生成ViewModel
-			var vm = parentScope ? createNewScope ? parentScope.$new(model) : parentScope : new Scope(model);
+			var vm = parentScope ? createNewScope ? parentScope.$new(model) : parentScope.$extend(model) : new Scope(model);
 			// 绑定watch
 			for(var key in watchs){
 				if(vm.$listeners[key]){
@@ -569,8 +721,24 @@
 			});
 			// 解析指令
 			directives.forEach(function(directive){
-				var result = Directives[directive.name](directive.node);
-				ViewModel(directive.node, result.model, vm, result.createNewScope);
+				if(directive.type === "Event"){
+					// 注册事件
+					var parse = new Function("scope", "$event", directive.content.replace(/[a-zA-Z\$_][a-zA-Z\$_0-9\.]*/g, function(expression){
+						if(["$event"].indexOf(expression.split(".")[0]) === -1){
+							return "scope." + expression;
+						}
+					}));
+					directive.node.addEventListener(directive.name, function(e){
+						parse.call(directive.node, vm, e);
+					}, false);
+				}else{
+					var result = Directives[directive.name](directive, vm);
+					if(directive.type === "Tag"){
+						result.children.forEach(function(child){
+							ViewModel(child.node, child.model, vm, result.createNewScope);
+						});
+					}
+				}
 			});
 		
 			return vm;

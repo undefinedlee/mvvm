@@ -5,7 +5,8 @@ var CoreDirectives = {
 	"if": require("./directives/if"),
 	"else": require("./directives/else"),
 	"switch": require("./directives/switch"),
-	"case": require("./directives/case")
+	"case": require("./directives/case"),
+	"model": require("./directives/model")
 };
 // 用户指令
 var ClientDirectives = {};

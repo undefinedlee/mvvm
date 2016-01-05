@@ -82,13 +82,13 @@ function scanExpression(content){
 }
 /**
  * 扫描属性
- * mv-model
- * mv-text
- * mv-html
- * mv-style
- * mv-src
+ * vm-model
+ * vm-text
+ * vm-html
+ * vm-style
+ * vm-src
  */
-function scanAttr(node, watchs){
+function scanAttr(node, watchs, directives){
 	var attrs = node.attributes;
 	for(var i = 0, l = attrs.length, attr; i < l; i ++){
 		attr = attrs[i];
@@ -98,9 +98,8 @@ function scanAttr(node, watchs){
 		var vars = expression.vars;
 		if(vars.length){
 			var parse = (function(parse){
-				if(/^mv\-/.test(name)){
-					name = name.replace(/^mv\-/, "");
-					switch(name){
+				if(/^vm\-/.test(name)){
+					switch(name.replace(/^vm\-/, "")){
 						case "text":
 							return function(scope){
 								node.innerText = parse(scope, renderUtil);
@@ -139,6 +138,26 @@ function scanAttr(node, watchs){
 				}
 			}
 		}
+
+		if(/^vm\-/.test(name)){
+			// 属性指令
+			name = name.replace(/^vm\-/, "");
+			directives.push({
+				type: "Attribute",
+				name: name,
+				content: value,
+				node: node
+			});
+		}else if(/^on\:/.test(name)){
+			// 事件
+			name = name.replace(/^on\:/, "");
+			directives.push({
+				type: "Event",
+				name: name,
+				content: value,
+				node: node
+			});
+		}
 	}
 }
 /**
@@ -154,10 +173,13 @@ function scanNode(node, watchs, directives, isRoot){
 				for(var i = 0, l = children.length; i < l; i ++){
 					scanNode(children[i], watchs, directives, false);
 				}
-				scanAttr(node, watchs);
+				scanAttr(node, watchs, directives);
 			}else{
+				// 标签指令
 				directives.push({
+					type: "Tag",
 					name: tagName,
+					content: node.getAttribute("exp"),
 					node: node
 				});
 			}

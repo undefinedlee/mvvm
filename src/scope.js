@@ -54,6 +54,17 @@ function digest(){
 	noReady = true;
 }
 
+
+// 检测某个作用域是否包含某个属性
+function hasProperty(scope, property){
+	if(scope.hasOwnProperty(property)){
+		return true;
+	}else if(scope.$parent){
+		return hasProperty(scope.$parent, property);
+	}
+	return false;
+}
+
 function Scope(propertys){
 	var self = this;
 	trans(this, propertys, function(property){
@@ -82,9 +93,25 @@ function Scope(propertys){
 }
 Scope.prototype = {
 	// 扩展属性
-	$extend: function(propertys){
+	$extend: function(propertys, ignoreParent){
 		var self = this;
-		trans(this, propertys, function(property){
+		// 只扩展未包含的属性
+		var _propertys = {};
+		if(ignoreParent){
+			for(var property in propertys){
+				if(!this.hasOwnProperty(property)){
+					_propertys[property] = propertys[property];
+				}
+			}
+		}else{
+			for(var property in propertys){
+				if(!this.$hasProperty(property)){
+					_propertys[property] = propertys[property];
+				}
+			}
+		}
+
+		trans(this, _propertys, function(property){
 			self.$digest(property);
 		});
 	},
@@ -170,6 +197,9 @@ Scope.prototype = {
 				listener.call(self);
 			});
 		}
+	},
+	$hasProperty: function(property){
+		return hasProperty(this, property);
 	}
 };
 
